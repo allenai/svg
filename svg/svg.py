@@ -252,7 +252,8 @@ class Group(Transformable):
         for elt in element:
             elt_class = svgClass.get(elt.tag, None)
             if elt_class is None:
-                print('No handler for element %s' % elt.tag)
+                if not ('title' in elt.tag or 'image' in elt.tag):
+                    print('No handler for element %s' % elt.tag)
                 continue
             # instanciate elt associated class (e.g. <path>: item = Path(elt)
             item = elt_class(elt)
@@ -327,6 +328,7 @@ class Path(Transformable):
         Transformable.__init__(self, elt)
         if elt is not None:
             self.style = elt.get('style')
+            self.stroke = elt.get('stroke')
             self.parse(elt.get('d'))
 
     def parse(self, pathstr):
@@ -617,6 +619,42 @@ class Rect(Transformable):
 
     def simplify(self, precision):
         return self.segments(precision)
+
+class Polyline(Transformable):
+    '''SVG <Polyline>'''
+    tag = 'polyline'
+
+    def __init__(self, elt=None):
+        Transformable.__init__(self, elt)
+        if elt is not None:
+            points_str = elt.get('points').split()
+            self.points = []
+            for p in points_str:
+                x, y = p.split(',')
+                self.points.append(Point(float(x), float(y)))
+
+    def __repr__(self):
+        return '<Polyline ' + self.id + '>'
+
+    def bbox(self):
+        '''Bounding box'''
+        xmin = min([p.x for p in self.points])
+        xmax = max([p.x for p in self.points])
+        ymin = min([p.y for p in self.points])
+        ymax = max([p.y for p in self.points])
+
+        return (Point(xmin,ymin), Point(xmax,ymax))
+
+    def transform(self, matrix):
+        for p in self.points:
+            p = self.matrix * p
+
+    def segments(self, precision=0):
+        return self.points
+
+    def simplify(self, precision):
+        return self.points
+
 
 class Line(Transformable):
     '''SVG <line>'''
